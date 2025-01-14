@@ -1,16 +1,21 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TryApi.ProductData;
 using TryApi.Products;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
-namespace TryApi.Controllers // Замените на ваше пространство имен
+namespace TryApi.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/products")]
     [ApiController]
+    [Authorize] // Защищаем весь контроллер от неавторизованных пользователей
     public class ProductsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
 
+        // Инъекция контекста базы данных через конструктор
         public ProductsController(ApplicationDbContext context)
         {
             _context = context;
@@ -18,132 +23,74 @@ namespace TryApi.Controllers // Замените на ваше простран�
 
         // GET: api/products
         [HttpGet]
-        public async Task<ActionResult<IEnumerable<Product>>> GetProducts(string Name = null, decimal? Price = null, string Description = null, int? Id = null)
+        public async Task<ActionResult<IEnumerable<Product>>> GetProducts()
         {
-            var products = await _context.Products
-            .Where(p => (Name == null || p.Name == Name) && (Price == null || p.Price == Price) && (Description == null || p.Description == Description) && (Id == null || p.id == Id))
-            .ToListAsync();
-            if (products == null)
+            try
             {
-                return NotFound();
+                var products = await _context.Products.ToListAsync();
+                return Ok(products);
             }
-            return products;
+            catch (Exception ex)
+            {
+                // Логирование ошибки
+                // _logger.LogError(ex, "Error occurred while getting products.");
+                return StatusCode(500, "Internal server error");
+            }
         }
-
-
 
         // GET: api/products/{id}
         [HttpGet("{id}")]
         public async Task<ActionResult<Product>> GetProduct(int id)
         {
-            var product = await _context.Products.FindAsync(id);
-            if (product == null)
+            try
             {
-                return NotFound();
-            }
-            return product;
-        }
+                var product = await _context.Products.FindAsync(id);
 
-        // GET: api/products/{name}
-        [HttpGet("{name}")]
-        public async Task<ActionResult<IEnumerable<Product>>> GetProductByName(string name)
-        {
-            var products = await _context.Products
-            .Where(p => p.Name == name)
-            .ToListAsync();
-            if (products == null)
+                if (product == null)
+                {
+                    return NotFound();
+                }
+
+                return Ok(product);
+            }
+            catch (Exception ex)
             {
-                return NotFound();
+                // Логирование ошибки
+                // _logger.LogError(ex, "Error occurred while getting product.");
+                return StatusCode(500, "Internal server error");
             }
-            return products;
-        }
-
-
-        // GET: api/products/{price}
-        [HttpGet("{price}")]
-        public async Task<ActionResult<IEnumerable<Product>>> GetProductByPrice(decimal price)
-        {
-            var products = await _context.Products
-            .Where(p => p.Price == price)
-            .ToListAsync();
-            if (products == null)
-            {
-                return NotFound();
-            }
-            return products;
-        }
-
-        // GET: api/products/{description}
-        [HttpGet("{description}")]
-        public async Task<ActionResult<IEnumerable<Product>>> GetProductByDescription(string description)
-        {
-            var products = await _context.Products
-            .Where(p => p.Description == description)
-            .ToListAsync();
-            if (products == null)
-            {
-                return NotFound();
-            }
-            return products;
         }
 
         // POST: api/products
         [HttpPost]
-        public async Task<ActionResult<Product>> PostProduct(Product product)
+        public async Task<ActionResult<Product>> CreateProduct([FromBody] ProductCreateDto dto)
         {
-            if (product == null)
+            if (!ModelState.IsValid)
             {
-                return BadRequest("Product cannot be null.");
+                return BadRequest(ModelState);
             }
 
-            _context.Products.Add(product);
-            await _context.SaveChangesAsync();
-
-            return CreatedAtAction(nameof(GetProduct), new { id = product.id }, product);
-        }
-
-        private object GetProduct()
-        {
-            throw new NotImplementedException();
-        }
-
-        // PUT: api/products/{id}
-        [HttpPut("{id}")]
-        public async Task<ActionResult<Product>> PutProduct(int id, Product product)
-        {
-            if (id!= product.id)
+            try
             {
-                return BadRequest("Product ID does not match.");
-            }
-            // Получаем продукт из базы данных по id
-            var existingProduct = await _context.Products.FindAsync(id);
-            if (existingProduct == null)
-            {
-                return NotFound();
-            }
-            // Обновляем продукт в базе данных
-            existingProduct.Name = product.Name;
-            existingProduct.Description = product.Description;
-            existingProduct.Price = product.Price;
-            _context.Entry(existingProduct).State = EntityState.Modified;
-            await _context.SaveChangesAsync();
-            return NoContent();
-        }
+                var product = new Product
+                {
+                    Name = dto.Name,
+                    Description = dto.Description,
+                    Price = dto.Price,
+                    Category = dto.Category,
+                    Stock = dto.Stock
+                };
 
-        
-        // DELETE: api/products/{id}
-        [HttpDelete("{id}")]
-        public async Task<ActionResult<Product>> DeleteProduct(int id)
-        {
-            var product = await _context.Products.FindAsync(id);
-            if (product == null)
-            {
-                return NotFound();
+                _context.Products.Add(product);
+                await _context.SaveChangesAsync();
+                return CreatedAtAction(nameof(GetProduct), new { id = product.Id }, product);
             }
-            _context.Products.Remove(product);
-            await _context.SaveChangesAsync();
-            return NoContent();
+            catch (Exception ex)
+            {
+                // Логирование ошибки
+                // _logger.LogError(ex, "Error occurred while creating product.");
+                return StatusCode(500, "Internal server error");
+            }
         }
-
     }
 }
