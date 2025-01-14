@@ -3,23 +3,27 @@ using TryApi.Products;
 
 namespace TryApi.ProductData
 {
-
     public class ApplicationDbContext : DbContext
     {
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
-            : base(options) 
-        { 
-        }
+        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options) : base(options) { }
 
-        // Пример добавления DbSet для ваших сущностей
+        // DbSet для продуктов
         public DbSet<Product> Products { get; set; }
+
+        // DbSet для пользователей (если добавляется)
+        public DbSet<User> Users { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
-            // Здесь можно настроить конфигурацию сущностей (например, ограничения и т.д.)
+            // Настройки для модели Product
             modelBuilder.Entity<Product>()
                 .Property(p => p.Name)
-                .IsRequired() // Пример обязательного свойства
-                .HasMaxLength(100); // Пример длины строки
+                .IsRequired() // Обязательное поле
+                .HasMaxLength(100); // Максимальная длина
+
+            modelBuilder.Entity<Product>()
+                .Property(p => p.Price)
+                .HasColumnType("decimal(18,2)"); // Тип для цены
 
             // Дополнительные настройки могут быть добавлены здесь
         }
